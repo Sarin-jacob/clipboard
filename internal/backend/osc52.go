@@ -14,9 +14,15 @@ func (b *OSC52Backend) Name() string {
 }
 
 func (b *OSC52Backend) Available() bool {
-	// Simple check: Is stdout a terminal? 
+	// Must be a terminal
 	fileInfo, _ := os.Stdout.Stat()
-	return (fileInfo.Mode() & os.ModeCharDevice) != 0
+	isTerminal := (fileInfo.Mode() & os.ModeCharDevice) != 0
+
+	// Must be an SSH session (check common SSH env vars)
+	_, hasSSH := os.LookupEnv("SSH_CONNECTION")
+	_, hasSSHClient := os.LookupEnv("SSH_CLIENT")
+	
+	return isTerminal && (hasSSH || hasSSHClient)
 }
 
 func (b *OSC52Backend) Copy(r io.Reader) error {
