@@ -1,22 +1,16 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
-
 version: 2
+
+project_name: clipboard
 
 before:
   hooks:
-    # You may remove this if you don't use go modules.
     - go mod tidy
-    # you may remove this if you don't need go generate
-    - go generate ./...
 
 builds:
-  - main: ./...
+  - id: clipboard
+    # Point exactly to your entry file
+    main: ./cmd/clipboard/main.go
+    binary: clipboard
     env:
       - CGO_ENABLED=0
     goos:
@@ -24,24 +18,65 @@ builds:
       - windows
       - darwin
     goarch:
-      - arm64
       - amd64
-      - "386"
+      - arm64
+    # Dropped 386 as it's rarely used for modern desktop/server environments
+    # but you can add it back if you need 32-bit support.
 
 archives:
   - formats: [tar.gz]
-    # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
+      {{ .ProjectName }}_{{ title .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "386" }}i386{{ else }}{{ .Arch }}{{ end }}{{ if .Arm }}v{{ .Arm }}{{ end }}
     format_overrides:
       - goos: windows
         formats: [zip]
+
+# ---------------------------------------------------------
+# LINUX PACKAGES (APT & RPM)
+# ---------------------------------------------------------
+nfpms:
+  - id: clipboard
+    package_name: clipboard
+    vendor: Sarin Jacob
+    maintainer: Sarin Jacob <your-email@example.com>
+    description: A cross-platform clipboard utility.
+    formats:
+      - deb
+      - rpm
+    # This automatically sets up the cb and cv symlinks in /usr/bin
+    # when the user runs `apt install clipboard`
+    symlinks:
+      /usr/bin/cb: /usr/bin/clipboard
+      /usr/bin/cv: /usr/bin/clipboard
+
+# ---------------------------------------------------------
+# macOS / LINUX HOMEBREW
+# ---------------------------------------------------------
+brews:
+  - repository:
+      owner: sarin-jacob
+      name: homebrew-tap # You must create this repo on your GitHub
+    description: "A cross-platform clipboard utility."
+    install: |
+      bin.install "clipboard"
+      bin.install_symlink "clipboard" => "cb"
+      bin.install_symlink "clipboard" => "cv"
+    test: |
+      system "#{bin}/clipboard version"
+
+# ---------------------------------------------------------
+# WINDOWS SCOOP
+# ---------------------------------------------------------
+scoops:
+  - repository:
+      owner: sarin-jacob
+      name: scoop-bucket # You must create this repo on your GitHub
+    description: "A cross-platform clipboard utility."
+    # This tells Scoop to expose the binary under three different names
+    bin:
+      - clipboard.exe
+      - [clipboard.exe, cb]
+      - [clipboard.exe, cv]
 
 changelog:
   sort: asc
@@ -49,10 +84,4 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-
-release:
-  footer: >-
-
-    ---
-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+      - "^chore:"
