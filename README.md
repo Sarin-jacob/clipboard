@@ -41,7 +41,7 @@ irm "https://raw.githubusercontent.com/sarin-jacob/clipboard/main/install.ps1" |
 
 If you prefer not to pipe an installation script directly into your shell, you can set it up manually:
 
-1. **Download the binary:** Go to the [Releases](https://github.com/sarin-jacob/clipboard/releases) page and download the raw binary matching your Operating System and Architecture (e.g., `clipboard_Linux_x86_64` or `clipboard_Windows_x86_64.exe`). And Unzip or untar the archive to extract the `clipboard` executable.
+1. **Download the binary:** Go to the [Releases](https://github.com/sarin-jacob/clipboard/releases/latest) page and download the raw binary matching your Operating System and Architecture (e.g., `clipboard_Linux_x86_64` or `clipboard_Windows_x86_64.exe`). And Unzip or untar the archive to extract the `clipboard` executable.
 2. **Make it executable** *(Linux/macOS only)*:
    ```bash
    chmod +x clipboard_Linux_x86_64
