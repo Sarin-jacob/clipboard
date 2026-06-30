@@ -39,6 +39,28 @@ irm "https://raw.githubusercontent.com/sarin-jacob/clipboard/main/install.ps1" |
 
 ### Manual Build / Go Toolchain
 
+If you prefer not to pipe an installation script directly into your shell, you can set it up manually:
+
+1. **Download the binary:** Go to the [Releases](https://github.com/sarin-jacob/clipboard/releases) page and download the raw binary matching your Operating System and Architecture (e.g., `clipboard_Linux_x86_64` or `clipboard_Windows_x86_64.exe`).
+2. **Make it executable** *(Linux/macOS only)*:
+   ```bash
+   chmod +x clipboard_Linux_x86_64
+   ```
+
+3. **Initialize the setup engine:** 
+   ```bash
+   # On Linux/macOS
+   ./clipboard_Linux_x86_64 setup
+
+   # On Windows (PowerShell)
+   .\clipboard_Windows_x86_64 setup
+
+   ```
+
+
+
+*(Alternatively, if you have a Go environment configured, you can just run the following)*
+
 ```bash
 go install github.com/sarin-jacob/clipboard/cmd/clipboard@latest clipboard setup
 ```
