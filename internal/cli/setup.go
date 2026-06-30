@@ -104,39 +104,62 @@ func setupUnixEnvironment(binaryPath, targetDir string) {
 
 // setupWindowsEnvironment configures PowerShell profile persistent aliases and user environment variable tracking
 func setupWindowsEnvironment(binaryPath, targetDir string) {
-	// 1. Retrieve the $PROFILE path dynamically directly from PowerShell
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", "Write-Host -NoNewline $PROFILE").Output()
+	out, err := exec.Command("powershell", "-NoProfile", "-Command", "[Environment]::GetFolderPath('MyDocuments')").Output()
 	if err != nil {
-		fmt.Printf("Failed to determine PowerShell profile path: %v\n", err)
+		fmt.Printf("Failed to determine Documents folder: %v\n", err)
 		return
 	}
+	docsDir := strings.TrimSpace(string(out))
 
-	profilePath := strings.TrimSpace(string(out))
-	profileDir := filepath.Dir(profilePath)
-
-	// Ensure the parent directory exists (e.g., if they've never customized their profile before)
-	_ = os.MkdirAll(profileDir, 0755)
-
-	aliasLines := fmt.Sprintf("\n# Clipboard Utility Aliases\nfunction cb_func { & \"%s\" copy $args }; Set-Alias cb cb_func\nfunction cv_func { & \"%s\" paste $args }; Set-Alias cv cv_func\n", binaryPath, binaryPath)
-
-	f, err := os.OpenFile(profilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err == nil {
-		defer f.Close()
-		_, _ = f.WriteString(aliasLines)
-		fmt.Println("Persistent aliases 'cb' and 'cv' have been injected into your PowerShell Profile.")
-	} else {
-		fmt.Printf("Failed to write to PowerShell profile: %v\n", err)
+	profiles := []string{
+		filepath.Join(docsDir, "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
+		filepath.Join(docsDir, "PowerShell", "Microsoft.PowerShell_profile.ps1"),
 	}
 
-	// 3. Check/add targetDir to the User Path environment variables so 'clipboard' can be invoked globally
+	marker := "# Clipboard Utility Aliases"
+	aliasLines := fmt.Sprintf("\n%s\nfunction cb_func { & \"%s\" copy $args }; Set-Alias cb cb_func\nfunction cv_func { & \"%s\" paste $args }; Set-Alias cv cv_func\n", marker, binaryPath, binaryPath)
+
+	successCount := 0
+	alreadyConfiguredCount := 0
+
+	// Inject aliases into all available profile paths safely
+	for _, profilePath := range profiles {
+		_ = os.MkdirAll(filepath.Dir(profilePath), 0755)
+
+		// 1. Check if the aliases already exist to prevent duplicate appends
+		content, err := os.ReadFile(profilePath)
+		if err == nil && strings.Contains(string(content), marker) {
+			alreadyConfiguredCount++
+			continue
+		}
+
+		// 2. If not found, append them
+		f, err := os.OpenFile(profilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			_, _ = f.WriteString(aliasLines)
+			f.Close()
+			successCount++
+		}
+	}
+
+	if successCount > 0 {
+		fmt.Println("Persistent aliases 'cb' and 'cv' injected into your PowerShell Profiles.")
+	} else if alreadyConfiguredCount > 0 {
+		fmt.Println("Persistent aliases are already configured in your PowerShell Profiles. Skipping.")
+	} else {
+		fmt.Println("Failed to write to any PowerShell profiles.")
+	}
+
 	userPath, _ := os.LookupEnv("PATH")
 	if !strings.Contains(strings.ToLower(userPath), strings.ToLower(targetDir)) {
 		fmt.Println("Updating environment path definitions...")
 		cmdText := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';%s', 'User')", targetDir)
 		_ = exec.Command("powershell", "-NoProfile", "-Command", cmdText).Run()
 		fmt.Println("Added ~/.local/bin path to your Windows User Environment Path variables.")
+	} else {
+		fmt.Println("~/.local/bin is already in your Windows User Environment Path.")
 	}
-	
+
 	fmt.Println("\nPlease restart your terminal window or run: . $PROFILE")
 }
 
