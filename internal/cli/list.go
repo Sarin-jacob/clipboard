@@ -7,7 +7,7 @@ import (
 )
 
 func RunList() {
-	fmt.Println("Available\n")
+	fmt.Print("\nAvailable\n\n")
 
 	// Instantiate all backends to check their status
 	backends := []backend.Backend{
@@ -28,7 +28,7 @@ func RunList() {
 		}
 	}
 
-	fmt.Println("\nSelected\n")
+	fmt.Print("\n\nSelected\n\n")
 	
 	selected, err := detect.GetPreferredBackend("")
 	if err != nil {
