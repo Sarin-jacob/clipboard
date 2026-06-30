@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sarin-jacob/cliboard/internal/backend"
+	"github.com/Sarin-jacob/clipboard/internal/backend"
 )
 
 // GetPreferredBackend iterates through available backends based on your priority list.
