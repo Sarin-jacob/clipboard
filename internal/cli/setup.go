@@ -104,10 +104,17 @@ func setupUnixEnvironment(binaryPath, targetDir string) {
 
 // setupWindowsEnvironment configures PowerShell profile persistent aliases and user environment variable tracking
 func setupWindowsEnvironment(binaryPath, targetDir string) {
-	homeDir, _ := os.UserHomeDir()
-	profileDir := filepath.Join(homeDir, "Documents", "WindowsPowerShell")
-	profilePath := filepath.Join(profileDir, "Microsoft.PowerShell_profile.ps1")
+	// 1. Retrieve the $PROFILE path dynamically directly from PowerShell
+	out, err := exec.Command("powershell", "-NoProfile", "-Command", "Write-Host -NoNewline $PROFILE").Output()
+	if err != nil {
+		fmt.Printf("Failed to determine PowerShell profile path: %v\n", err)
+		return
+	}
 
+	profilePath := strings.TrimSpace(string(out))
+	profileDir := filepath.Dir(profilePath)
+
+	// Ensure the parent directory exists (e.g., if they've never customized their profile before)
 	_ = os.MkdirAll(profileDir, 0755)
 
 	aliasLines := fmt.Sprintf("\n# Clipboard Utility Aliases\nfunction cb_func { & \"%s\" copy $args }; Set-Alias cb cb_func\nfunction cv_func { & \"%s\" paste $args }; Set-Alias cv cv_func\n", binaryPath, binaryPath)
@@ -117,15 +124,16 @@ func setupWindowsEnvironment(binaryPath, targetDir string) {
 		defer f.Close()
 		_, _ = f.WriteString(aliasLines)
 		fmt.Println("Persistent aliases 'cb' and 'cv' have been injected into your PowerShell Profile.")
+	} else {
+		fmt.Printf("Failed to write to PowerShell profile: %v\n", err)
 	}
 
-	// Also check/add targetDir to the User Path environment variables so 'clipboard' can be invoked globally
-	userPath, _ := os.LookupEnv("PATH") // note: simple check, ideally check Registry for exact User Path scope
+	// 3. Check/add targetDir to the User Path environment variables so 'clipboard' can be invoked globally
+	userPath, _ := os.LookupEnv("PATH")
 	if !strings.Contains(strings.ToLower(userPath), strings.ToLower(targetDir)) {
 		fmt.Println("Updating environment path definitions...")
-		// Use a lightweight powershell subprocess command to update user environment variables permanently
 		cmdText := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';%s', 'User')", targetDir)
-		_ = exec.Command("powershell", "-Command", cmdText).Run()
+		_ = exec.Command("powershell", "-NoProfile", "-Command", cmdText).Run()
 		fmt.Println("Added ~/.local/bin path to your Windows User Environment Path variables.")
 	}
 	
