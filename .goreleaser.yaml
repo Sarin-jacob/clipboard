@@ -6,6 +6,9 @@ before:
   hooks:
     - go mod tidy
 
+env_files:
+  vcs_tokens: .secret
+
 builds:
   - id: clipboard
     # Point exactly to your entry file
@@ -24,12 +27,9 @@ builds:
     # but you can add it back if you need 32-bit support.
 
 archives:
-  - formats: [tar.gz]
+  - format: binary
     name_template: >-
-      {{ .ProjectName }}_{{ title .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "386" }}i386{{ else }}{{ .Arch }}{{ end }}{{ if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        formats: [zip]
+      {{ .ProjectName }}_{{ title .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
 
 # ---------------------------------------------------------
 # LINUX PACKAGES (APT & RPM)
@@ -43,11 +43,14 @@ nfpms:
     formats:
       - deb
       - rpm
-    # This automatically sets up the cb and cv symlinks in /usr/bin
-    # when the user runs `apt install clipboard`
-    symlinks:
-      /usr/bin/cb: /usr/bin/clipboard
-      /usr/bin/cv: /usr/bin/clipboard
+    # Correct syntax for nFPM symlinks:
+    contents:
+      - src: /usr/bin/clipboard
+        dst: /usr/bin/cb
+        type: symlink
+      - src: /usr/bin/clipboard
+        dst: /usr/bin/cv
+        type: symlink
 
 # ---------------------------------------------------------
 # macOS / LINUX HOMEBREW
@@ -68,15 +71,15 @@ brews:
 # WINDOWS SCOOP
 # ---------------------------------------------------------
 scoops:
-  - repository:
+  - name: clipboard
+    repository:
       owner: sarin-jacob
-      name: scoop-bucket # You must create this repo on your GitHub
+      name: scoop-bucket # Your public scoop git repo
     description: "A cross-platform clipboard utility."
-    # This tells Scoop to expose the binary under three different names
-    bin:
-      - clipboard.exe
-      - [clipboard.exe, cb]
-      - [clipboard.exe, cv]
+    license: MIT
+    post_install:
+      - 'Set-Alias -Name cb -Value (Join-Path $dir "clipboard.exe") -Scope Global'
+      - 'Set-Alias -Name cv -Value (Join-Path $dir "clipboard.exe") -Scope Global'
 
 changelog:
   sort: asc

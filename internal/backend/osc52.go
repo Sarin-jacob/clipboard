@@ -38,5 +38,5 @@ func (b *OSC52Backend) Copy(r io.Reader) error {
 }
 
 func (b *OSC52Backend) Paste(w io.Writer) error {
-	return fmt.Errorf("OSC52 does not support pasting (read-only protocol)")
+	return fmt.Errorf("OSC52 does not support pasting (read-only protocol)\n\tUse Ctrl+V / Ctrl+Shift+V instead")
 }
