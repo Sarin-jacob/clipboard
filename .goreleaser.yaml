@@ -2,16 +2,15 @@ version: 2
 
 project_name: clipboard
 
+env_files:
+  github_token: .secret
+
 before:
   hooks:
     - go mod tidy
 
-env_files:
-  vcs_tokens: .secret
-
 builds:
   - id: clipboard
-    # Point exactly to your entry file
     main: ./cmd/clipboard/main.go
     binary: clipboard
     env:
@@ -23,63 +22,17 @@ builds:
     goarch:
       - amd64
       - arm64
-    # Dropped 386 as it's rarely used for modern desktop/server environments
-    # but you can add it back if you need 32-bit support.
 
 archives:
-  - format: binary
+  - formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_{{ title .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
 
-# ---------------------------------------------------------
-# LINUX PACKAGES (APT & RPM)
-# ---------------------------------------------------------
-nfpms:
-  - id: clipboard
-    package_name: clipboard
-    vendor: Sarin Jacob
-    maintainer: Sarin Jacob <your-email@example.com>
-    description: A cross-platform clipboard utility.
-    formats:
-      - deb
-      - rpm
-    # Correct syntax for nFPM symlinks:
-    contents:
-      - src: /usr/bin/clipboard
-        dst: /usr/bin/cb
-        type: symlink
-      - src: /usr/bin/clipboard
-        dst: /usr/bin/cv
-        type: symlink
-
-# ---------------------------------------------------------
-# macOS / LINUX HOMEBREW
-# ---------------------------------------------------------
-brews:
-  - repository:
-      owner: sarin-jacob
-      name: homebrew-tap # You must create this repo on your GitHub
-    description: "A cross-platform clipboard utility."
-    install: |
-      bin.install "clipboard"
-      bin.install_symlink "clipboard" => "cb"
-      bin.install_symlink "clipboard" => "cv"
-    test: |
-      system "#{bin}/clipboard version"
-
-# ---------------------------------------------------------
-# WINDOWS SCOOP
-# ---------------------------------------------------------
-scoops:
-  - name: clipboard
-    repository:
-      owner: sarin-jacob
-      name: scoop-bucket # Your public scoop git repo
-    description: "A cross-platform clipboard utility."
-    license: MIT
-    post_install:
-      - 'Set-Alias -Name cb -Value (Join-Path $dir "clipboard.exe") -Scope Global'
-      - 'Set-Alias -Name cv -Value (Join-Path $dir "clipboard.exe") -Scope Global'
+checksum:
+  name_template: checksums.txt
 
 changelog:
   sort: asc
