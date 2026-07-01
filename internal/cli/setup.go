@@ -104,52 +104,37 @@ func setupUnixEnvironment(binaryPath, targetDir string) {
 
 // setupWindowsEnvironment configures PowerShell profile persistent aliases and user environment variable tracking
 func setupWindowsEnvironment(binaryPath, targetDir string) {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", "[Environment]::GetFolderPath('MyDocuments')").Output()
-	if err != nil {
-		fmt.Printf("Failed to determine Documents folder: %v\n", err)
-		return
-	}
-	docsDir := strings.TrimSpace(string(out))
+	fmt.Println("Creating native Windows shim scripts...")
 
-	profiles := []string{
-		filepath.Join(docsDir, "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
-		filepath.Join(docsDir, "PowerShell", "Microsoft.PowerShell_profile.ps1"),
-	}
+	exeName := filepath.Base(binaryPath)
 
-	marker := "# Clipboard Utility Aliases"
-	aliasLines := fmt.Sprintf("\n%s\nfunction cb_func { & \"%s\" copy $args }; Set-Alias cb cb_func\nfunction cv_func { & \"%s\" paste $args }; Set-Alias cv cv_func\n", marker, binaryPath, binaryPath)
-
-	successCount := 0
-	alreadyConfiguredCount := 0
-
-	// Inject aliases into all available profile paths safely
-	for _, profilePath := range profiles {
-		_ = os.MkdirAll(filepath.Dir(profilePath), 0755)
-
-		// 1. Check if the aliases already exist to prevent duplicate appends
-		content, err := os.ReadFile(profilePath)
-		if err == nil && strings.Contains(string(content), marker) {
-			alreadyConfiguredCount++
-			continue
-		}
-
-		// 2. If not found, append them
-		f, err := os.OpenFile(profilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err == nil {
-			_, _ = f.WriteString(aliasLines)
-			f.Close()
-			successCount++
-		}
-	}
-
-	if successCount > 0 {
-		fmt.Println("Persistent aliases 'cb' and 'cv' injected into your PowerShell Profiles.")
-	} else if alreadyConfiguredCount > 0 {
-		fmt.Println("Persistent aliases are already configured in your PowerShell Profiles. Skipping.")
+	// 1. Generate Command Prompt / PowerShell Shims (.cmd)
+	cbPath := filepath.Join(targetDir, "cb.cmd")
+	cbContent := fmt.Sprintf("@echo off\r\n\"%%~dp0%s\" copy %%*\r\n", exeName)
+	if err := os.WriteFile(cbPath, []byte(cbContent), 0755); err != nil {
+		fmt.Printf("Failed to create cb.cmd: %v\n", err)
 	} else {
-		fmt.Println("Failed to write to any PowerShell profiles.")
+		fmt.Println("Created cb.cmd")
 	}
 
+	cvPath := filepath.Join(targetDir, "cv.cmd")
+	cvContent := fmt.Sprintf("@echo off\r\n\"%%~dp0%s\" paste %%*\r\n", exeName)
+	if err := os.WriteFile(cvPath, []byte(cvContent), 0755); err != nil {
+		fmt.Printf("Failed to create cv.cmd: %v\n", err)
+	} else {
+		fmt.Println("Created cv.cmd")
+	}
+
+	// 2. Generate Unix/Git Bash Shims (No extension)
+	cbBash := filepath.Join(targetDir, "cb")
+	cbBashContent := fmt.Sprintf("#!/bin/sh\nexec \"$(dirname \"$0\")/%s\" copy \"$@\"\n", exeName)
+	_ = os.WriteFile(cbBash, []byte(cbBashContent), 0755)
+
+	cvBash := filepath.Join(targetDir, "cv")
+	cvBashContent := fmt.Sprintf("#!/bin/sh\nexec \"$(dirname \"$0\")/%s\" paste \"$@\"\n", exeName)
+	_ = os.WriteFile(cvBash, []byte(cvBashContent), 0755)
+
+	// 3. Ensure the folder is in the system PATH
 	userPath, _ := os.LookupEnv("PATH")
 	if !strings.Contains(strings.ToLower(userPath), strings.ToLower(targetDir)) {
 		fmt.Println("Updating environment path definitions...")
@@ -160,7 +145,7 @@ func setupWindowsEnvironment(binaryPath, targetDir string) {
 		fmt.Println("~/.local/bin is already in your Windows User Environment Path.")
 	}
 
-	fmt.Println("\nPlease restart your terminal window or run: . $PROFILE")
+	fmt.Println("\nSetup complete! Please restart your terminal window.")
 }
 
 func copyFile(src, dst string) error {
